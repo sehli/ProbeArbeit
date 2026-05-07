@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.example.project.abfall.data.FavoritesStore
 import org.example.project.abfall.model.Hausnummer
 import org.example.project.abfall.model.Kommune
 import org.example.project.abfall.model.Ort
@@ -15,13 +16,21 @@ import org.example.project.abfall.repo.AbfallRepository
 
 class AbfallViewModel(
     private val repository: AbfallRepository,
+    private val favoritesStore: FavoritesStore,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(AbfallUiState())
+    private val _state = MutableStateFlow(
+        AbfallUiState(favorites = favoritesStore.get(scopeFor(Step.KommuneAuswahl)))
+    )
     val state: StateFlow<AbfallUiState> = _state.asStateFlow()
 
+    private fun setStep(step: Step) {
+        _state.update { it.copy(step = step, favorites = favoritesStore.get(scopeFor(step))) }
+    }
+
     fun selectKommune(kommune: Kommune) {
-        _state.update { it.copy(step = Step.OrtAuswahl(kommune), orte = ListLoadState(isLoading = true)) }
+        setStep(Step.OrtAuswahl(kommune))
+        _state.update { it.copy(orte = ListLoadState(isLoading = true)) }
         viewModelScope.launch {
             runCatching { repository.loadOrte(kommune.regionCode) }
                 .onSuccess { items -> _state.update { it.copy(orte = ListLoadState(items = items)) } }
@@ -33,9 +42,8 @@ class AbfallViewModel(
         val current = _state.value.step
         if (current !is Step.OrtAuswahl) return
         val k = current.kommune
-        _state.update {
-            it.copy(step = Step.StrasseAuswahl(k, ort), strassen = ListLoadState(isLoading = true))
-        }
+        setStep(Step.StrasseAuswahl(k, ort))
+        _state.update { it.copy(strassen = ListLoadState(isLoading = true)) }
         viewModelScope.launch {
             runCatching { repository.loadStrassen(k.regionCode, ort.id) }
                 .onSuccess { items -> _state.update { it.copy(strassen = ListLoadState(items = items)) } }
@@ -46,12 +54,8 @@ class AbfallViewModel(
     fun selectStrasse(strasse: Strasse) {
         val current = _state.value.step
         if (current !is Step.StrasseAuswahl) return
-        _state.update {
-            it.copy(
-                step = Step.HausnummerAuswahl(current.kommune, current.ort, strasse),
-                hausnummern = ListLoadState(isLoading = true),
-            )
-        }
+        setStep(Step.HausnummerAuswahl(current.kommune, current.ort, strasse))
+        _state.update { it.copy(hausnummern = ListLoadState(isLoading = true)) }
         viewModelScope.launch {
             runCatching { repository.loadHausnummern(current.kommune.regionCode, strasse.id) }
                 .onSuccess { items ->
@@ -67,12 +71,8 @@ class AbfallViewModel(
 
     private fun loadTermineForStrasseAsHausnummer(kommune: Kommune, ort: Ort, strasse: Strasse) {
         val pseudo = Hausnummer(id = strasse.id, nr = "—")
-        _state.update {
-            it.copy(
-                step = Step.TermineAnzeige(kommune, ort, strasse, pseudo),
-                termine = ListLoadState(isLoading = true),
-            )
-        }
+        setStep(Step.TermineAnzeige(kommune, ort, strasse, pseudo))
+        _state.update { it.copy(termine = ListLoadState(isLoading = true)) }
         viewModelScope.launch {
             runCatching { repository.loadTermineForStrasse(kommune.regionCode, strasse.id) }
                 .onSuccess { items -> _state.update { it.copy(termine = ListLoadState(items = items)) } }
@@ -83,12 +83,8 @@ class AbfallViewModel(
     fun selectHausnummer(hausnummer: Hausnummer) {
         val current = _state.value.step
         if (current !is Step.HausnummerAuswahl) return
-        _state.update {
-            it.copy(
-                step = Step.TermineAnzeige(current.kommune, current.ort, current.strasse, hausnummer),
-                termine = ListLoadState(isLoading = true),
-            )
-        }
+        setStep(Step.TermineAnzeige(current.kommune, current.ort, current.strasse, hausnummer))
+        _state.update { it.copy(termine = ListLoadState(isLoading = true)) }
         viewModelScope.launch {
             runCatching { repository.loadTermine(current.kommune.regionCode, hausnummer.id) }
                 .onSuccess { items -> _state.update { it.copy(termine = ListLoadState(items = items)) } }
@@ -96,16 +92,31 @@ class AbfallViewModel(
         }
     }
 
+    fun toggleFavorite(id: String) {
+        val scope = scopeFor(_state.value.step)
+        val updated = favoritesStore.toggle(scope, id)
+        _state.update { it.copy(favorites = updated) }
+    }
+
     fun back() {
-        _state.update { current ->
-            val newStep = when (val s = current.step) {
-                Step.KommuneAuswahl -> Step.KommuneAuswahl
-                is Step.OrtAuswahl -> Step.KommuneAuswahl
-                is Step.StrasseAuswahl -> Step.OrtAuswahl(s.kommune)
-                is Step.HausnummerAuswahl -> Step.StrasseAuswahl(s.kommune, s.ort)
-                is Step.TermineAnzeige -> Step.HausnummerAuswahl(s.kommune, s.ort, s.strasse)
-            }
-            current.copy(step = newStep)
+        val newStep = when (val s = _state.value.step) {
+            Step.KommuneAuswahl -> Step.KommuneAuswahl
+            is Step.OrtAuswahl -> Step.KommuneAuswahl
+            is Step.StrasseAuswahl -> Step.OrtAuswahl(s.kommune)
+            is Step.HausnummerAuswahl -> Step.StrasseAuswahl(s.kommune, s.ort)
+            is Step.TermineAnzeige -> Step.HausnummerAuswahl(s.kommune, s.ort, s.strasse)
+        }
+        setStep(newStep)
+    }
+
+    companion object {
+        fun scopeFor(step: Step): String = when (step) {
+            Step.KommuneAuswahl -> "kommune"
+            is Step.OrtAuswahl -> "ort.${step.kommune.regionCode}"
+            is Step.StrasseAuswahl -> "strasse.${step.kommune.regionCode}.${step.ort.id}"
+            is Step.HausnummerAuswahl ->
+                "hausnummer.${step.kommune.regionCode}.${step.ort.id}.${step.strasse.id}"
+            is Step.TermineAnzeige -> "termine.disabled"
         }
     }
 }

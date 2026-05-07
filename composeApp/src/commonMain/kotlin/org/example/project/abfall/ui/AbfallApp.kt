@@ -25,7 +25,7 @@ import org.example.project.abfall.ui.components.StatefulList
 fun AbfallApp() {
     MaterialTheme {
         val viewModel: AbfallViewModel = viewModel {
-            AbfallViewModel(ServiceLocator.repository)
+            AbfallViewModel(ServiceLocator.repository, ServiceLocator.favorites)
         }
         val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -61,22 +61,38 @@ fun AbfallApp() {
                         StatefulList(
                             state = ListLoadState(items = kommunen),
                             label = { it.displayName },
+                            keyOf = { it.regionCode },
+                            favoritesEnabled = true,
+                            favorites = state.favorites,
+                            onToggleFavorite = { viewModel.toggleFavorite(it) },
                             onClick = { viewModel.selectKommune(it) },
                         )
                     }
                     is Step.OrtAuswahl -> StatefulList(
                         state = state.orte,
                         label = { it.name },
+                        keyOf = { it.id.toString() },
+                        favoritesEnabled = true,
+                        favorites = state.favorites,
+                        onToggleFavorite = { viewModel.toggleFavorite(it) },
                         onClick = { viewModel.selectOrt(it) },
                     )
                     is Step.StrasseAuswahl -> StatefulList(
                         state = state.strassen,
                         label = { it.name },
+                        keyOf = { it.id.toString() },
+                        favoritesEnabled = true,
+                        favorites = state.favorites,
+                        onToggleFavorite = { viewModel.toggleFavorite(it) },
                         onClick = { viewModel.selectStrasse(it) },
                     )
                     is Step.HausnummerAuswahl -> StatefulList(
                         state = state.hausnummern,
                         label = { it.nr ?: "—" },
+                        keyOf = { it.id.toString() },
+                        favoritesEnabled = true,
+                        favorites = state.favorites,
+                        onToggleFavorite = { viewModel.toggleFavorite(it) },
                         onClick = { viewModel.selectHausnummer(it) },
                     )
                     is Step.TermineAnzeige -> StatefulList(

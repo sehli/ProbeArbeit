@@ -31,4 +31,5 @@ data class AbfallUiState(
     val strassen: ListLoadState<Strasse> = ListLoadState(),
     val hausnummern: ListLoadState<Hausnummer> = ListLoadState(),
     val termine: ListLoadState<TerminAnzeige> = ListLoadState(),
+    val favorites: Set<String> = emptySet(),
 )
