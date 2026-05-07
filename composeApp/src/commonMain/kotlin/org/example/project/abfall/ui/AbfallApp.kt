@@ -25,7 +25,7 @@ import org.example.project.abfall.ui.components.StatefulList
 fun AbfallApp() {
     MaterialTheme {
         val viewModel: AbfallViewModel = viewModel {
-            AbfallViewModel(ServiceLocator.repository, ServiceLocator.favorites)
+            AbfallViewModel(ServiceLocator.repository, ServiceLocator.favoritesRepository)
         }
         val state by viewModel.state.collectAsStateWithLifecycle()
 

@@ -7,25 +7,25 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.example.project.abfall.data.FavoritesStore
 import org.example.project.abfall.model.Hausnummer
 import org.example.project.abfall.model.Kommune
 import org.example.project.abfall.model.Ort
 import org.example.project.abfall.model.Strasse
 import org.example.project.abfall.repo.AbfallRepository
+import org.example.project.abfall.repo.FavoritesRepository
 
 class AbfallViewModel(
     private val repository: AbfallRepository,
-    private val favoritesStore: FavoritesStore,
+    private val favoritesRepository: FavoritesRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
-        AbfallUiState(favorites = favoritesStore.get(scopeFor(Step.KommuneAuswahl)))
+        AbfallUiState(favorites = favoritesRepository.favorites(scopeFor(Step.KommuneAuswahl)))
     )
     val state: StateFlow<AbfallUiState> = _state.asStateFlow()
 
     private fun setStep(step: Step) {
-        _state.update { it.copy(step = step, favorites = favoritesStore.get(scopeFor(step))) }
+        _state.update { it.copy(step = step, favorites = favoritesRepository.favorites(scopeFor(step))) }
     }
 
     fun selectKommune(kommune: Kommune) {
@@ -94,7 +94,7 @@ class AbfallViewModel(
 
     fun toggleFavorite(id: String) {
         val scope = scopeFor(_state.value.step)
-        val updated = favoritesStore.toggle(scope, id)
+        val updated = favoritesRepository.toggle(scope, id)
         _state.update { it.copy(favorites = updated) }
     }
 

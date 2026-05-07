@@ -1,10 +1,10 @@
-package org.example.project.abfall.data
+package org.example.project.abfall.data.local
 
 import com.russhwolf.settings.Settings
 
 private const val SEPARATOR = "|"
 
-class FavoritesStore(private val settings: Settings = Settings()) {
+class FavoritesLocalDataSource(private val settings: Settings = Settings()) {
 
     fun get(scope: String): Set<String> =
         settings.getStringOrNull(key(scope))
