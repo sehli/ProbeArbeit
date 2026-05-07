@@ -11,21 +11,71 @@ import org.example.project.abfall.model.Hausnummer
 import org.example.project.abfall.model.Kommune
 import org.example.project.abfall.model.Ort
 import org.example.project.abfall.model.Strasse
+import org.example.project.abfall.model.WatchedAddress
+import org.example.project.abfall.notification.AbfallNotificationScheduler
 import org.example.project.abfall.repo.AbfallRepository
 import org.example.project.abfall.repo.FavoritesRepository
+import org.example.project.abfall.repo.WatchedAddressRepository
 
 class AbfallViewModel(
     private val repository: AbfallRepository,
     private val favoritesRepository: FavoritesRepository,
+    private val watchedRepository: WatchedAddressRepository,
+    private val notificationScheduler: AbfallNotificationScheduler,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
-        AbfallUiState(favorites = favoritesRepository.favorites(scopeFor(Step.KommuneAuswahl)))
+        AbfallUiState(
+            favorites = favoritesRepository.favorites(scopeFor(Step.KommuneAuswahl)),
+            isWatched = false,
+        )
     )
     val state: StateFlow<AbfallUiState> = _state.asStateFlow()
 
     private fun setStep(step: Step) {
-        _state.update { it.copy(step = step, favorites = favoritesRepository.favorites(scopeFor(step))) }
+        _state.update {
+            it.copy(
+                step = step,
+                favorites = favoritesRepository.favorites(scopeFor(step)),
+                isWatched = isStepWatched(step),
+            )
+        }
+    }
+
+    private fun isStepWatched(step: Step): Boolean {
+        val key = watchedKeyFor(step) ?: return false
+        return watchedRepository.isWatched(key)
+    }
+
+    private fun watchedKeyFor(step: Step): String? = when (step) {
+        is Step.TermineAnzeige -> watchedAddressFor(step).storageKey
+        else -> null
+    }
+
+    private fun watchedAddressFor(step: Step.TermineAnzeige): WatchedAddress {
+        val isPseudo = step.hausnummer.nr == "—"
+        return WatchedAddress(
+            region = step.kommune.regionCode,
+            regionDisplay = step.kommune.displayName,
+            ortName = step.ort.name,
+            strasseName = step.strasse.name,
+            hausnummerId = if (isPseudo) null else step.hausnummer.id,
+            hausnummerNr = if (isPseudo) null else step.hausnummer.nr,
+            strasseId = if (isPseudo) step.strasse.id else null,
+        )
+    }
+
+    fun toggleWatch() {
+        val step = _state.value.step
+        if (step !is Step.TermineAnzeige) return
+        val address = watchedAddressFor(step)
+        val updated = if (watchedRepository.isWatched(address.storageKey)) {
+            watchedRepository.remove(address.storageKey)
+        } else {
+            watchedRepository.add(address)
+        }
+        _state.update { it.copy(isWatched = updated.any { w -> w.storageKey == address.storageKey }) }
+        if (updated.isEmpty()) notificationScheduler.cancel() else notificationScheduler.scheduleDaily()
     }
 
     fun selectKommune(kommune: Kommune) {

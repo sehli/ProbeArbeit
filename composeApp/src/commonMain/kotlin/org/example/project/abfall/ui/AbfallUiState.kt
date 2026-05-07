@@ -32,4 +32,5 @@ data class AbfallUiState(
     val hausnummern: ListLoadState<Hausnummer> = ListLoadState(),
     val termine: ListLoadState<TerminAnzeige> = ListLoadState(),
     val favorites: Set<String> = emptySet(),
+    val isWatched: Boolean = false,
 )

@@ -1,15 +1,23 @@
 package org.example.project.abfall.ui
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -25,7 +33,12 @@ import org.example.project.abfall.ui.components.StatefulList
 fun AbfallApp() {
     MaterialTheme {
         val viewModel: AbfallViewModel = viewModel {
-            AbfallViewModel(ServiceLocator.repository, ServiceLocator.favoritesRepository)
+            AbfallViewModel(
+                ServiceLocator.repository,
+                ServiceLocator.favoritesRepository,
+                ServiceLocator.watchedAddressRepository,
+                ServiceLocator.notificationScheduler,
+            )
         }
         val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -95,12 +108,31 @@ fun AbfallApp() {
                         onToggleFavorite = { viewModel.toggleFavorite(it) },
                         onClick = { viewModel.selectHausnummer(it) },
                     )
-                    is Step.TermineAnzeige -> StatefulList(
-                        state = state.termine,
-                        label = { "${it.datum}  ·  ${it.fraktionName}" },
-                        onClick = { },
-                        emptyMessage = "Keine Termine gefunden",
-                    )
+                    is Step.TermineAnzeige -> Column(modifier = Modifier.fillMaxSize()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                        ) {
+                            Text(
+                                "Tägliche Erinnerung um 08:00",
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Switch(
+                                checked = state.isWatched,
+                                onCheckedChange = { viewModel.toggleWatch() },
+                            )
+                        }
+                        HorizontalDivider()
+                        StatefulList(
+                            state = state.termine,
+                            label = { "${it.datum}  ·  ${it.fraktionName}" },
+                            onClick = { },
+                            emptyMessage = "Keine Termine gefunden",
+                        )
+                    }
                 }
             }
         }
