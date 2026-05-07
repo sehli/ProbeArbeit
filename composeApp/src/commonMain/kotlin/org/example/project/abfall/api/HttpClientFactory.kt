@@ -9,6 +9,7 @@ import kotlinx.serialization.json.Json
 
 object HttpClientFactory {
     fun create(): HttpClient = HttpClient {
+        expectSuccess = true
         install(ContentNegotiation) {
             json(Json {
                 ignoreUnknownKeys = true

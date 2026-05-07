@@ -23,9 +23,17 @@ class AbfallRepository(private val api: AbfallApi) {
         return termine
             .map { t ->
                 val fraktionId = t.fraktionId ?: t.bezirk?.fraktionId
-                val name = fraktionen[fraktionId]?.name ?: t.bezirk?.name ?: "Unbekannt"
+                val name = fraktionen[fraktionId]?.name ?: t.bezirk?.name ?: "Termin"
                 TerminAnzeige(datum = t.datum, fraktionName = name)
             }
             .sortedBy { it.datum }
     }
+
+    suspend fun loadTermineForStrasse(region: String, strasseId: Long): List<TerminAnzeige> =
+        api.getTermineForStrasse(region, strasseId)
+            .map { t ->
+                val name = t.bezirk?.name ?: "Termin"
+                TerminAnzeige(datum = t.datum, fraktionName = name)
+            }
+            .sortedBy { it.datum }
 }

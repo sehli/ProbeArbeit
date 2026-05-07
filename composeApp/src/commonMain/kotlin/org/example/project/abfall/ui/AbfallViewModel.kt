@@ -74,7 +74,7 @@ class AbfallViewModel(
             )
         }
         viewModelScope.launch {
-            runCatching { repository.loadTermine(kommune.regionCode, strasse.id) }
+            runCatching { repository.loadTermineForStrasse(kommune.regionCode, strasse.id) }
                 .onSuccess { items -> _state.update { it.copy(termine = ListLoadState(items = items)) } }
                 .onFailure { e -> _state.update { it.copy(termine = ListLoadState(error = e.message ?: "Fehler")) } }
         }
